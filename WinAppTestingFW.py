@@ -82,7 +82,7 @@ class Tests(unittest.TestCase):
         options.app = "Root"
         options.platform_name = "Windows"
         self.driver = webdriver.Remote(appium_server_url, options=options)
-        self.wait = WebDriverWait(self.driver, 10)
+        self.wait = WebDriverWait(self.driver, 10, 0.1)
 
     def tearDown(self) -> None:
         if self.driver is not None:
@@ -148,28 +148,28 @@ class Functions:
     @staticmethod
     def create_new_project(driver, project_name, password):
         Logger.logger_step(1, "Creating a new project")
-        Functions.wait_and_click(driver, (AppiumBy.NAME, "New project..."), 10)
-        driver.find_element(AppiumBy.NAME, "Name:").send_keys(project_name)
-        driver.find_element(AppiumBy.NAME, "Password:").send_keys(password)
-        driver.find_element(AppiumBy.NAME, "Confirm password:").send_keys(password)
+        Functions.wait_and_click(driver, (AppiumBy.ACCESSIBILITY_ID, "m_newProjectButton"), 10)
+        Functions.wait_and_send_keys(driver, (AppiumBy.ACCESSIBILITY_ID, "m_projectNameTextBox"), 10, project_name)
+        Functions.wait_and_send_keys(driver, (AppiumBy.ACCESSIBILITY_ID, "m_legacyPassword"), 10, password)
+        Functions.wait_and_send_keys(driver, (AppiumBy.ACCESSIBILITY_ID, "m_confirmLegacyPassword"), 10, password)
         Functions.wait_and_click(driver, (AppiumBy.NAME, "OK"), 10)
 
     @staticmethod
     def wait_and_click(driver, locator, timeout):
-        WebDriverWait(driver, timeout).until(EC.presence_of_element_located(locator)).click()
+        WebDriverWait(driver, timeout).until(EC.presence_of_element_located(locator), 0.1).click()
 
     @staticmethod
     def wait_clickable_and_click(driver, locator, timeout):
-        WebDriverWait(driver, timeout).until(EC.element_to_be_clickable(locator)).click()
+        WebDriverWait(driver, timeout).until(EC.element_to_be_clickable(locator), 0.1).click()
         
 
     @staticmethod
     def wait_and_send_keys(driver, locator, timeout, text):
-        WebDriverWait(driver, timeout).until(EC.presence_of_element_located(locator)).send_keys(text)
+        WebDriverWait(driver, timeout).until(EC.presence_of_element_located(locator), 0.1).send_keys(text)
 
     @staticmethod
     def wait_and_click_by_index(driver, locator, index, timeout):
-        elements = WebDriverWait(driver, timeout).until(EC.presence_of_all_elements_located(locator))
+        elements = WebDriverWait(driver, timeout).until(EC.presence_of_all_elements_located(locator), 0.1)
         if index < len(elements):
             elements[index].click()
         else:
