@@ -224,7 +224,7 @@ class Functions:
     @staticmethod
     def install_program():
         try:
-            Logger.logger_warn('Installing the latest verion of the STS app')
+            Logger.logger_warn('Installing the latest verion of the app')
             cmd = [APP_EXE_PATH, "/S", "/v/qn"]
             result = subprocess.run(cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             if result.returncode != 0:
