@@ -105,7 +105,7 @@ class Tests(unittest.TestCase):
     Add new tests here. Any method that starts with 'test_' prefix will be treated as a new test. 
     '''
 
-    def test_download_fw(self):
+    def test_update_row(self):
         # Functions.install_program()
 
         Tests.launch_exe(Tests.target_path, Tests.arguments, EXE_DIRECTORY)
