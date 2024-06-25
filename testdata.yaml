@@ -1,7 +1,6 @@
 SHORTCUT_PATH: "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Sample Program\\Program.lnk"
-EXE_DIRECTORY: "C:\\STS3500\\Prg"
+EXE_DIRECTORY: "C:\\Program Files\\Program"
 DEFAULT_PORT: 4725
 PASSWORD: "sample_pass"
 APP_NAME: "Sample app name"
-FW_VERSION: "35.00-56"
 APP_EXE_PATH: "C:\\Users\\Sample_User\\program.exe"
