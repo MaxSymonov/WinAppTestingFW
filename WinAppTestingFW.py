@@ -1,5 +1,4 @@
 import os
-import time
 import unittest
 import warnings
 import winshell
@@ -9,23 +8,25 @@ from appium.options.windows import WindowsOptions
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import socket
-import ctypes
 from appium.webdriver.appium_service import AppiumService
+import subprocess
+import pyautogui
+import time
+import yaml
+from selenium.common.exceptions import NoSuchElementException, ElementNotInteractableException, TimeoutException
 
-"""
-Install dependencies:
-node 18 or 20
-npm install -g appium@2.2.3
-appium driver install --source=npm appium-windows-driver
-pip install Appium-Python-Client
-pip install selenium
-pip install winshell
-"""
+current_dir = os.path.dirname(os.path.realpath(__file__))
+config_file_path = os.path.join(current_dir, 'testdata.yaml')
 
-# Constants
-SHORTCUT_PATH = "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Program\\Application.lnk"
-EXE_DIRECTORY = r'C:\Program Files\Application'
-DEFAULT_PORT = 4725
+with open(config_file_path, 'r') as f:
+    config = yaml.safe_load(f)
+
+SHORTCUT_PATH = config['SHORTCUT_PATH']
+EXE_DIRECTORY = config['EXE_DIRECTORY']
+DEFAULT_PORT = config['DEFAULT_PORT']
+APP_EXE_PATH = config['APP_EXE_PATH']
+APP_NAME = config['APP_NAME']
+PASSWORD = config['PASSWORD']
 
 class AppiumServer:
     def __init__(self):
@@ -45,52 +46,51 @@ class AppiumServer:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             return s.connect_ex(('localhost', port)) == 0
 
+
 class Tests(unittest.TestCase):
     driver = None
     appium_server = AppiumServer()
+    target_path = None
+    arguments = None
 
     @classmethod
     def setUpClass(cls):
+        global driver, appium_server
         warnings.filterwarnings("ignore")
 
-        Logger.logger_warn('Killing all instances of node.exe and WinAppDriver.exe to avoid interference of any running Appium sessions')
+        Logger.logger_warn('Killing all instances of node.exe to avoid interference of any running Appium sessions')
 
         os.system('taskkill /f /im node.exe')
-        os.system('taskkill /f /im WinAppDriver.exe')
 
-        time.sleep(2)
-
-        Logger.logger_warn("All instances of 'node' and 'WinAppDriver' killed, starting Appium server, please wait")
+        Logger.logger_warn("All instances of 'node' killed, starting Appium server, please wait")
 
         cls.appium_server.start()
 
+        # Logger.logger_bold('Uninstalling previous version of the app')
+
+        # Functions.uninstall_program(APP_NAME)
+
         # Parsing shortcut so that if the app needs to be launched with some arguments, they will be parsed automatically and the app will be launched using them
         shortcut = winshell.shortcut(SHORTCUT_PATH)
-        target_path = shortcut.path
-        arguments = shortcut.arguments
-        Logger.logger_underline(
-            f"Launching the app from URI: {target_path} with the following arguments (if any): {arguments}")
+        cls.target_path = shortcut.path
+        cls.arguments = shortcut.arguments
 
-        warnings.filterwarnings("ignore")
 
-        ctypes.windll.shell32.ShellExecuteW(None, "runas", target_path, arguments, EXE_DIRECTORY, 1)
+        warnings.filterwarnings("ignore")        
+
+        cls.launch_exe(cls.target_path, cls.arguments, EXE_DIRECTORY)
+
+    @staticmethod
+    def launch_exe(target_path, arguments, exe_directory):
+        subprocess.Popen([target_path, arguments], cwd=exe_directory)
 
     def setUp(self) -> None:
         appium_server_url = f"http://127.0.0.1:{self.appium_server.port}/wd/hub"
         options = WindowsOptions()
-        options.experimental_webdriver = True
+        options.experimental_webdriver = False
         options.app = "Root"
         options.platform_name = "Windows"
         self.driver = webdriver.Remote(appium_server_url, options=options)
-        self.wait = WebDriverWait(self.driver, 10, 0.1)
-
-    def tearDown(self) -> None:
-        if self.driver is not None:
-            try:
-                Logger.logger_bold("Closing the app after test")
-                self.driver.find_element(AppiumBy.NAME, "Close").click()
-            except Exception as e:
-                Logger.logger_warn(f"An error occurred while closing the app: {str(e)}")
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -102,70 +102,71 @@ class Tests(unittest.TestCase):
                 Logger.logger_warn(f"An error occurred while stopping the driver and Appium service: {str(e)}")
 
     '''
-    Add new tests here. Any method that starts with 'test_' prefix will be treated as a new test.
+    Add new tests here. Any method that starts with 'test_' prefix will be treated as a new test. 
     '''
 
-    def test_do_something(self):
-        Functions.create_new_project(self.driver, "TestProject", "123456")
+    def test_download_fw(self):
+        # Functions.install_program()
 
-        Functions.wait_and_click(self.driver, (AppiumBy.NAME, "New Area"), 10)
+        Tests.launch_exe(Tests.target_path, Tests.arguments, EXE_DIRECTORY)
 
-        Logger.logger_step(2, "Dropping new area at location")
+        Functions.open_project(self.driver)
 
-        new_entry_xpath = "//*[@AutomationId=\"MainForm\"]/Pane[@AutomationId=\"m_newEntry\"]"
-        Functions.wait_and_click(self.driver, (AppiumBy.XPATH, new_entry_xpath), 10)
+        # Functions.resize_window(800, 600)
 
-        Logger.logger_step(3, "Naming the new entry")
-        Functions.wait_and_send_keys(self.driver, (AppiumBy.NAME, "New Area"), 10, 'Hello Kitty :)')
-        time.sleep(0.2)
-        Functions.wait_and_click(self.driver, (AppiumBy.NAME, "OK"), 10)
+        Logger.logger_step(1, "Select a row")
+        Functions.wait_and_click(self.driver, (AppiumBy.NAME, "Table View"), 30)
 
-        Logger.logger_step(4, "Validating the entry name")
+        Functions.context_click_element(self.driver, (AppiumBy.NAME, "Select a row"))
 
-        Functions.validate_text_in_element(self.driver, "Hello Kitty :)", (AppiumBy.NAME, "Name Row 0"))
+        Logger.logger_step(2, 'Click OK')
 
-        Logger.logger_step(5, "Dial some number, cancel dialing process")
+        Functions.wait_and_click(self.driver, (AppiumBy.ACCESSIBILITY_ID, "buttonOK"), 20)
 
-        Functions.wait_and_click(self.driver, (AppiumBy.NAME, "System"), 10)
+        Logger.logger_step(3, 'Right click the row and click update')
 
-        dropdown_menu_locator = (AppiumBy.NAME, "SystemDropDown")
+        Functions.context_click_element(self.driver, (AppiumBy.ACCESSIBILITY_ID, "row"))
 
-        Functions.wait_and_click_by_index(self.driver, dropdown_menu_locator, 0, 10)
+        Functions.wait_and_click(self.driver, (AppiumBy.NAME, "Update"), 20)
 
-        Functions.wait_and_send_keys(self.driver, (AppiumBy.NAME, "Dialup"), 10, "05356789574")
+        Logger.logger_step(4, 'Enter password')
 
-        Functions.wait_and_click(self.driver, (AppiumBy.NAME, "Dial"), 10)
+        Functions.wait_and_click(self.driver, (AppiumBy.NAME, "Download"), 20)
 
-        Functions.wait_and_click(self.driver, (AppiumBy.NAME, "Cancel"), 10)
+        WebDriverWait(self.driver, 150).until(EC.presence_of_element_located((AppiumBy.ACCESSIBILITY_ID, "textBox"))).send_keys(PASSWORD)
 
-        Functions.wait_and_click(self.driver, (AppiumBy.NAME, "Hangup"), 10)
+        Functions.wait_and_click(self.driver, (AppiumBy.ACCESSIBILITY_ID, "buttonOK"), 20)
 
-        Functions.wait_and_click(self.driver, (AppiumBy.NAME, "Close"), 10)
-        
-        pass
+        Logger.logger_step(5, 'Closing the app')
+
+        Functions.wait_and_click(self.driver, (AppiumBy.ACCESSIBILITY_ID, "buttonClose"), 20)
+
+        Functions.wait_and_click(self.driver, (AppiumBy.ACCESSIBILITY_ID, "Close"), 20)
+
 
 class Functions:
     @staticmethod
-    def create_new_project(driver, project_name, password):
-        Logger.logger_step(1, "Creating a new project")
-        Functions.wait_and_click(driver, (AppiumBy.ACCESSIBILITY_ID, "m_newProjectButton"), 10)
-        Functions.wait_and_send_keys(driver, (AppiumBy.ACCESSIBILITY_ID, "m_projectNameTextBox"), 10, project_name)
-        Functions.wait_and_send_keys(driver, (AppiumBy.ACCESSIBILITY_ID, "m_legacyPassword"), 10, password)
-        Functions.wait_and_send_keys(driver, (AppiumBy.ACCESSIBILITY_ID, "m_confirmLegacyPassword"), 10, password)
-        Functions.wait_and_click(driver, (AppiumBy.NAME, "OK"), 10)
+    def open_project(driver):
+        Logger.logger_bold("Opening project")
+        Functions.wait_and_click(driver, (AppiumBy.ACCESSIBILITY_ID, "buttonOK"), 25)
+
+    @staticmethod
+    def remove_test_project(driver):
+        try:
+            Logger.logger_bold("Closing the app and removing the test Project")
+            driver.find_element(AppiumBy.NAME, "Close").click()
+        except Exception as e:
+            Logger.logger_warn(f"An error occurred while closing the app: {str(e)}")
 
     @staticmethod
     def wait_and_click(driver, locator, timeout):
-        WebDriverWait(driver, timeout).until(EC.presence_of_element_located(locator), 0.1).click()
-
-    @staticmethod
-    def wait_clickable_and_click(driver, locator, timeout):
-        WebDriverWait(driver, timeout).until(EC.element_to_be_clickable(locator), 0.1).click()
-        
+        element = WebDriverWait(driver, timeout).until(EC.element_to_be_clickable(locator))
+        element.click()
 
     @staticmethod
     def wait_and_send_keys(driver, locator, timeout, text):
-        WebDriverWait(driver, timeout).until(EC.presence_of_element_located(locator), 0.1).send_keys(text)
+        element = WebDriverWait(driver, timeout).until(EC.element_to_be_clickable(locator))
+        element.send_keys(text)
 
     @staticmethod
     def wait_and_click_by_index(driver, locator, index, timeout):
@@ -180,6 +181,58 @@ class Functions:
         element = driver.find_element(*locator)
         actual_text = element.text
         assert actual_text == expected_text, f"Expected '{expected_text}', but got '{actual_text}'"
+
+    @staticmethod
+    def double_click_element(element):
+        x, y = element.location['x'], element.location['y']
+        pyautogui.moveTo(x, y)
+        pyautogui.doubleClick()
+
+    @staticmethod
+    def context_click_element(driver, locator):
+        element = driver.find_element(*locator)
+        x, y = element.location['x'], element.location['y']
+        pyautogui.moveTo(x, y)
+        pyautogui.rightClick()
+
+    @staticmethod
+    def drag_and_drop_element(source_element, target_element):
+        source_x, source_y = source_element.location['x'], source_element.location['y']
+        target_x, target_y = target_element.location['x'] + target_element.size['width'] // 2, target_element.location[
+            'y'] + target_element.size['height'] // 2
+        pyautogui.moveTo(source_x, source_y)
+        pyautogui.mouseDown()
+        time.sleep(0.5)
+        pyautogui.moveTo(target_x, target_y)
+        pyautogui.mouseUp()
+
+    @staticmethod
+    def resize_window(width, height):
+        pyautogui.hotkey('alt', 'space')
+        pyautogui.press('r')
+        pyautogui.typewrite(['right', 'right', 'enter'])
+        pyautogui.typewrite([str(width), 'tab', str(height), 'enter'])
+
+    @staticmethod
+    def uninstall_program(partial_program_name):
+        try:
+            subprocess.check_call(f'wmic product where "name like \'%{partial_program_name}%\'" call uninstall', shell=True)
+            print(f"Program(s) starting with {partial_program_name} has been uninstalled.")
+        except subprocess.CalledProcessError:
+            print(f"No program starting with {partial_program_name} is installed or could not be uninstalled.")
+
+    @staticmethod
+    def install_program():
+        try:
+            Logger.logger_warn('Installing the latest verion of the STS app')
+            cmd = [APP_EXE_PATH, "/S", "/v/qn"]
+            result = subprocess.run(cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            if result.returncode != 0:
+                print(f"An error occurred during installation: {result.stderr.decode('utf-8')}")
+            else:
+                print("Installation was successful.")
+        except Exception as e: 
+            print(f"An exception occurred while installing the program: {e}")
 
 
 class Logger:
