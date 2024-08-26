@@ -73,8 +73,8 @@ class Tests(unittest.TestCase):
         # Parsing shortcut so that if the app needs to be launched with some arguments, they will be parsed automatically and the app will be launched using them
         shortcut = winshell.shortcut(SHORTCUT_PATH)
         cls.target_path = shortcut.path
-        cls.arguments = shortcut.arguments
-
+        cls.arguments = shortcut.arguments.split()
+        print(f"Executable is being launched with the following arguments (if any): {cls.arguments}")
 
         warnings.filterwarnings("ignore")        
 
