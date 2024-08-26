@@ -82,7 +82,7 @@ class Tests(unittest.TestCase):
 
     @staticmethod
     def launch_exe(target_path, arguments, exe_directory):
-        subprocess.Popen([target_path, arguments], cwd=exe_directory)
+        subprocess.Popen([target_path] + arguments, cwd=exe_directory)
 
     def setUp(self) -> None:
         appium_server_url = f"http://127.0.0.1:{self.appium_server.port}/wd/hub"
